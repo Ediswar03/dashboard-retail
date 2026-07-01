@@ -44,6 +44,27 @@ return [
             'transaction_mode' => 'DEFERRED',
         ],
 
+        'tidb' => [
+            'driver' => 'mysql',
+            'url' => env('DB_URL'),
+            'host' => env('DB_TIDB_HOST', '127.0.0.1'),
+            'port' => env('DB_TIDB_PORT', '4000'),
+            'database' => env('DB_TIDB_DATABASE', 'test'),
+            'username' => env('DB_TIDB_USERNAME', 'root'),
+            'password' => env('DB_TIDB_PASSWORD', ''),
+            'unix_socket' => env('DB_SOCKET'),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                PDO::MYSQL_ATTR_SSL_CA => env('TIDB_SSL_CA'),
+                PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => false, // Penting untuk TiDB Serverless jika CA file tidak ditentukan
+            ]) : [],
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
