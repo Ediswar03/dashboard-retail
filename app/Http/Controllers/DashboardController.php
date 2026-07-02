@@ -58,13 +58,22 @@ class DashboardController extends Controller
 
         $base = $query->clone();
 
+        $summaryRaw = $base->clone()->select(
+            DB::raw('SUM(total_price) as total_revenue'),
+            DB::raw('COUNT(DISTINCT invoice_no) as total_invoices'),
+            DB::raw('COUNT(DISTINCT customer_id) as total_customers'),
+            DB::raw('COUNT(DISTINCT stock_code) as total_products'),
+            DB::raw('COUNT(DISTINCT country) as total_countries'),
+            DB::raw('SUM(quantity) as total_units')
+        )->first();
+
         $summary = [
-            'total_revenue' => (float) $base->clone()->sum('total_price'),
-            'total_invoices' => $base->clone()->distinct('invoice_no')->count('invoice_no'),
-            'total_customers' => $base->clone()->distinct('customer_id')->count('customer_id'),
-            'total_products' => $base->clone()->distinct('stock_code')->count('stock_code'),
-            'total_countries' => $base->clone()->distinct('country')->count('country'),
-            'total_units' => (int) $base->clone()->sum('quantity'),
+            'total_revenue' => (float) $summaryRaw->total_revenue,
+            'total_invoices' => (int) $summaryRaw->total_invoices,
+            'total_customers' => (int) $summaryRaw->total_customers,
+            'total_products' => (int) $summaryRaw->total_products,
+            'total_countries' => (int) $summaryRaw->total_countries,
+            'total_units' => (int) $summaryRaw->total_units,
         ];
         $summary['avg_order'] = $summary['total_invoices'] > 0 ? $summary['total_revenue'] / $summary['total_invoices'] : 0;
         $returns = $base->clone()->where('quantity', '<', 0)->count();
@@ -122,6 +131,13 @@ class DashboardController extends Controller
             ->get()->map(function($item) {
                 return ['d' => substr($item->d, 0, 3), 'rev' => (float)$item->rev];
             });
+
+        // 1. Histogram (hist) - Dinonaktifkan ke statis (Opsi A) karena performa lambat (tabel 500k+ baris)
+        // 2. RFM Analysis - Dinonaktifkan ke statis (Opsi A) karena performa lambat
+
+
+        // 3. Basket Analysis (Dinonaktifkan / Dikembalikan ke Statis karena masalah performa timeout Self-Join)
+        // Kueri Basket Analysis dipisahkan atau dilakukan pre-agregasi (Opsi A)
 
         return response()->json([
             'summary' => $summary,

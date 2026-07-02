@@ -456,12 +456,20 @@ tbody tr:last-child td { border-bottom: none; }
 
   <div class="sb-footer">
     <div class="sb-user">
-      <div class="sb-avatar">AV</div>
+      <div class="sb-avatar">{{ substr(Auth::user()->name ?? 'A', 0, 1) }}</div>
       <div class="sb-user-info">
-        <p>Analyst</p>
+        <p>{{ Auth::user()->name ?? 'Analyst' }}</p>
         <span>DATA ANALYTICS · 2026</span>
       </div>
     </div>
+
+    <form method="POST" action="{{ route('logout') }}" style="width: 100%; margin-bottom: 8px;">
+      @csrf
+      <button type="submit" class="sb-toggle" style="color: #E11D48; border-color: rgba(225,29,72,0.3); background: rgba(225,29,72,0.05);">
+        <span class="sb-toggle-lbl" style="margin: 0 auto; opacity: 1; font-weight: 600;">Logout</span>
+      </button>
+    </form>
+
     <button class="sb-toggle" onclick="toggleSB()">
       <span id="sb-icon">◀</span>
       <span class="sb-toggle-lbl" id="sb-lbl">Collapse</span>
@@ -933,11 +941,18 @@ async function refreshDynamic() {
         D.hourly = data.hourly;
         D.dow = data.dow;
         
+        if (data.hist) D.hist = data.hist;
+        if (data.rfm) D.rfm = data.rfm;
+        if (data.basket) D.basket = data.basket;
+        
         renderKPI();
         renderOV();
         renderTrend();
         renderGeo();
         renderProducts();
+        renderRFM();
+        renderBasket();
+        renderInsights();
         
         document.querySelector('.sb-status-txt').textContent = 'Live · UCI Retail Dataset';
     } catch(e) {
@@ -1208,64 +1223,65 @@ function exportPDF(){
   const W=210,M=15;
 
   // Halaman 1 — Cover + Summary
-  doc.setFillColor(7,11,15);doc.rect(0,0,W,297,'F');
-  doc.setFillColor(31,111,235);doc.rect(0,0,W,3,'F');
-  doc.setTextColor(88,166,255);doc.setFont('helvetica','bold');doc.setFontSize(10);
+  doc.setFillColor(255,255,255);doc.rect(0,0,W,297,'F'); // White background
+  doc.setFillColor(31,111,235);doc.rect(0,0,W,3,'F'); // Top blue bar
+  doc.setTextColor(31,111,235);doc.setFont('helvetica','bold');doc.setFontSize(10);
   doc.text('DATALENS PRO — RETAIL ANALYTICS PLATFORM',M,24);
-  doc.setTextColor(230,237,243);doc.setFontSize(28);
+  doc.setTextColor(15,23,42);doc.setFontSize(28); // Dark Slate
   doc.text('Laporan Analitik',M,40);doc.text('Penjualan Retail',M,54);
-  doc.setTextColor(139,148,158);doc.setFont('helvetica','normal');doc.setFontSize(11);
+  doc.setTextColor(71,85,105);doc.setFont('helvetica','normal');doc.setFontSize(11);
   doc.text('Online Retail Dataset — UCI Machine Learning Repository',M,68);
   doc.text('Daqing Chen (2015) · CC BY 4.0 · DOI: 10.24432/C5BW33',M,75);
 
   // KPI Box
-  doc.setFillColor(22,27,34);doc.roundedRect(M,88,W-M*2,72,4,4,'F');
-  doc.setTextColor(88,166,255);doc.setFont('helvetica','bold');doc.setFontSize(9);
+  doc.setFillColor(248,250,252);doc.roundedRect(M,88,W-M*2,72,4,4,'F'); // Light slate bg
+  doc.setTextColor(31,111,235);doc.setFont('helvetica','bold');doc.setFontSize(9);
   doc.text('RINGKASAN EKSEKUTIF',M+5,97);
   const kpis=[['Total Revenue','£10.27 Million'],['Invoice Unik','19,778'],['Pelanggan','4,335'],['Produk','3,915'],['Negara','38'],['Avg/Invoice','£519']];
   kpis.forEach((k,i)=>{
     const x=M+5+(i%3)*58,y=106+Math.floor(i/3)*30;
-    doc.setTextColor(139,148,158);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(k[0],x,y);
-    doc.setTextColor(88,166,255);doc.setFont('helvetica','bold');doc.setFontSize(15);doc.text(k[1],x,y+9);
+    doc.setTextColor(71,85,105);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(k[0],x,y);
+    doc.setTextColor(15,23,42);doc.setFont('helvetica','bold');doc.setFontSize(15);doc.text(k[1],x,y+9);
   });
 
   // Monthly table
   let y=172;
-  doc.setTextColor(88,166,255);doc.setFont('helvetica','bold');doc.setFontSize(9);
+  doc.setTextColor(31,111,235);doc.setFont('helvetica','bold');doc.setFontSize(9);
   doc.text('TREN PENDAPATAN BULANAN',M,y);y+=5;
-  doc.setFillColor(33,38,45);doc.rect(M,y,W-M*2,7,'F');
+  doc.setFillColor(241,245,249);doc.rect(M,y,W-M*2,7,'F'); // Slate 100
   ['Periode','Revenue (£)','Invoice','Growth %'].forEach((h,i)=>{
-    doc.setTextColor(139,148,158);doc.setFont('helvetica','bold');doc.setFontSize(8);
+    doc.setTextColor(71,85,105);doc.setFont('helvetica','bold');doc.setFontSize(8);
     doc.text(h,M+3+i*44,y+5);
   });
   y+=8;
   D.monthly.forEach((m,i)=>{
     if(y>282)return;
-    if(i%2===0){doc.setFillColor(22,27,34);doc.rect(M,y,W-M*2,6,'F');}
-    doc.setTextColor(230,237,243);doc.setFont('helvetica','normal');doc.setFontSize(8);
+    if(i%2===0){doc.setFillColor(248,250,252);doc.rect(M,y,W-M*2,6,'F');} // Slate 50
+    doc.setTextColor(15,23,42);doc.setFont('helvetica','normal');doc.setFontSize(8);
     doc.text(m.p,M+3,y+4.5);
     doc.text('£'+Math.round(m.rev).toLocaleString(),M+47,y+4.5);
     doc.text(m.ord.toString(),M+91,y+4.5);
-    doc.setTextColor(m.g>=0?63:248,m.g>=0?185:81,m.g>=0?80:73);
+    doc.setTextColor(m.g>=0?21:225,m.g>=0?128:29,m.g>=0?61:72); // Green 600 or Rose 600
     doc.text((m.g>0?'+':'')+m.g.toFixed(1)+'%',M+135,y+4.5);
     y+=6;
   });
 
   // Halaman 2 — RFM
   doc.addPage();
-  doc.setFillColor(7,11,15);doc.rect(0,0,W,297,'F');
+  doc.setFillColor(255,255,255);doc.rect(0,0,W,297,'F');
   doc.setFillColor(31,111,235);doc.rect(0,0,W,2,'F');
-  doc.setTextColor(88,166,255);doc.setFont('helvetica','bold');doc.setFontSize(10);
+  doc.setTextColor(31,111,235);doc.setFont('helvetica','bold');doc.setFontSize(10);
   doc.text('CUSTOMER SEGMENTATION — RFM ANALYSIS',M,18);
   let ry=26;
-  const segC={Champions:[88,166,255],'Loyal Customers':[63,185,80],'New Customers':[188,140,255],'At Risk':[210,153,34],Lost:[248,81,73],'Potential Loyalists':[57,211,83]};
+  // Adjusted for light background contrast
+  const segC={Champions:[37,99,235],'Loyal Customers':[22,163,74],'New Customers':[147,51,234],'At Risk':[217,119,6],Lost:[225,29,72],'Potential Loyalists':[13,148,136]};
   D.rfm.forEach(s=>{
-    const cl=segC[s.seg]||[88,166,255];
-    doc.setFillColor(22,27,34);doc.roundedRect(M,ry,W-M*2,28,3,3,'F');
+    const cl=segC[s.seg]||[37,99,235];
+    doc.setFillColor(248,250,252);doc.roundedRect(M,ry,W-M*2,28,3,3,'F');
     doc.setFillColor(...cl);doc.roundedRect(M,ry,4,28,2,2,'F');
     doc.setTextColor(...cl);doc.setFont('helvetica','bold');doc.setFontSize(10);
     doc.text(s.seg,M+8,ry+9);
-    doc.setTextColor(139,148,158);doc.setFont('helvetica','normal');doc.setFontSize(8);
+    doc.setTextColor(71,85,105);doc.setFont('helvetica','normal');doc.setFontSize(8);
     doc.text(`${fmt(s.cnt)} pelanggan · £${fmt(s.rev)} revenue`,M+8,ry+16);
     doc.text(`${s.pct_c}% pelanggan · ${s.pct_r}% revenue · ${s.desc.slice(0,60)}`,M+8,ry+22);
     ry+=32;
@@ -1273,26 +1289,26 @@ function exportPDF(){
 
   // Halaman 3 — Top Products
   doc.addPage();
-  doc.setFillColor(7,11,15);doc.rect(0,0,W,297,'F');
+  doc.setFillColor(255,255,255);doc.rect(0,0,W,297,'F');
   doc.setFillColor(31,111,235);doc.rect(0,0,W,2,'F');
-  doc.setTextColor(88,166,255);doc.setFont('helvetica','bold');doc.setFontSize(10);
+  doc.setTextColor(31,111,235);doc.setFont('helvetica','bold');doc.setFontSize(10);
   doc.text('TOP 20 PRODUK BERDASARKAN REVENUE',M,18);
   let py=26;
-  doc.setFillColor(33,38,45);doc.rect(M,py,W-M*2,7,'F');
+  doc.setFillColor(241,245,249);doc.rect(M,py,W-M*2,7,'F');
   ['#','Produk','Revenue','Qty','Orders'].forEach((h,i)=>{
-    doc.setTextColor(139,148,158);doc.setFont('helvetica','bold');doc.setFontSize(8);
+    doc.setTextColor(71,85,105);doc.setFont('helvetica','bold');doc.setFontSize(8);
     doc.text(h,M+[2,10,118,143,158][i],py+5);
   });
   py+=8;
   D.products.forEach((p,i)=>{
     if(py>285)return;
-    if(i%2===0){doc.setFillColor(22,27,34);doc.rect(M,py,W-M*2,6,'F');}
-    doc.setTextColor(139,148,158);doc.setFont('helvetica','normal');doc.setFontSize(7.5);
+    if(i%2===0){doc.setFillColor(248,250,252);doc.rect(M,py,W-M*2,6,'F');}
+    doc.setTextColor(71,85,105);doc.setFont('helvetica','normal');doc.setFontSize(7.5);
     doc.text((i+1).toString(),M+2,py+4.5);
     const nm=p.n.length>44?p.n.slice(0,44)+'…':p.n;
-    doc.setTextColor(230,237,243);doc.text(nm,M+10,py+4.5);
-    doc.setTextColor(88,166,255);doc.text('£'+fmt(p.rev),M+118,py+4.5);
-    doc.setTextColor(139,148,158);doc.text(fmt(p.qty),M+143,py+4.5);
+    doc.setTextColor(15,23,42);doc.text(nm,M+10,py+4.5);
+    doc.setTextColor(31,111,235);doc.text('£'+fmt(p.rev),M+118,py+4.5);
+    doc.setTextColor(71,85,105);doc.text(fmt(p.qty),M+143,py+4.5);
     doc.text(fmt(p.ord),M+160,py+4.5);
     py+=6;
   });
