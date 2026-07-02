@@ -223,7 +223,7 @@ html, body {
       <p>Please enter your credentials to access the platform.</p>
     </div>
     
-    <form action="{{ route('login.post') }}" method="POST">
+    <form action="/login" method="POST">
       @csrf
       
       @if ($errors->any())

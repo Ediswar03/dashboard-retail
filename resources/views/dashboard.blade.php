@@ -463,7 +463,7 @@ tbody tr:last-child td { border-bottom: none; }
       </div>
     </div>
 
-    <form method="POST" action="{{ route('logout') }}" style="width: 100%; margin-bottom: 8px;">
+    <form method="POST" action="/logout" style="width: 100%; margin-bottom: 8px;">
       @csrf
       <button type="submit" class="sb-toggle" style="color: #E11D48; border-color: rgba(225,29,72,0.3); background: rgba(225,29,72,0.05);">
         <span class="sb-toggle-lbl" style="margin: 0 auto; opacity: 1; font-weight: 600;">Logout</span>
